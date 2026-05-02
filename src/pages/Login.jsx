@@ -92,13 +92,16 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full py-3 flex items-center justify-center gap-2"
+              className={`btn-primary w-full py-3 flex items-center justify-center gap-2 transition-all duration-300 ${loading ? 'opacity-80' : ''}`}
             >
               {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white animate-spin" />
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  <span className="text-sm font-bold uppercase tracking-widest">Authenticating...</span>
+                </div>
               ) : (
                 <>
-                  <span>Sign Into Dashboard</span>
+                  <span className="text-sm font-bold uppercase tracking-widest">Sign Into Dashboard</span>
                   <ChevronRight size={18} />
                 </>
               )}
@@ -108,7 +111,7 @@ const Login = () => {
           <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-2">
             <div className="flex justify-between text-[10px] text-zinc-500 uppercase font-bold">
               <span>Admin: admin / admin123</span>
-              <span>Rep: rep / rep123</span>
+              <span>Staff: malu / malu@1234</span>
             </div>
           </div>
         </div>
