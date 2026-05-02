@@ -149,7 +149,6 @@ app.get('/api/targets', async (req, res) => {
 app.post('/api/targets', async (req, res) => {
   const targets = req.body;
   try {
-    // For simplicity, always update the first target row or create one
     const check = await pool.query('SELECT id FROM targets LIMIT 1');
     let query;
     let values;
@@ -198,4 +197,8 @@ app.post('/api/profile', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(\`Server running on port \${PORT}\`));
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+
+module.exports = app;
