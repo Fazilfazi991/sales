@@ -41,39 +41,48 @@ const Dashboard = () => {
   const [audits, setAudits] = useState([]);
   const [activityData, setActivityData] = useState([]);
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     const fetchData = async () => {
-      const [leadsData, meetingsData, auditsData, targetsData, allActivity] = await Promise.all([
-        DataManager.getLeads(),
-        DataManager.getMeetings(),
-        DataManager.getAudits(),
-        DataManager.getTargets(),
-        DataManager.getActivity()
-      ]);
+      setLoading(true);
+      try {
+        const [leadsData, meetingsData, auditsData, targetsData, allActivity] = await Promise.all([
+          DataManager.getLeads().catch(() => []),
+          DataManager.getMeetings().catch(() => []),
+          DataManager.getAudits().catch(() => []),
+          DataManager.getTargets().catch(() => ({})),
+          DataManager.getActivity().catch(() => [])
+        ]);
 
-      setLeads(Array.isArray(leadsData) ? leadsData : []);
-      setMeetings(Array.isArray(meetingsData) ? meetingsData : []);
-      setAudits(Array.isArray(auditsData) ? auditsData : []);
-      setTargets(targetsData || { monthlyMeetings: 0 });
+        setLeads(Array.isArray(leadsData) ? leadsData : []);
+        setMeetings(Array.isArray(meetingsData) ? meetingsData : []);
+        setAudits(Array.isArray(auditsData) ? auditsData : []);
+        setTargets(targetsData && typeof targetsData === 'object' ? targetsData : { monthlyMeetings: 0 });
 
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const safeActivity = Array.isArray(allActivity) ? allActivity : [];
-      const todayActivity = safeActivity.find(a => a.date === today) || {
-        leadsContacted: 0, calls: 0, messages: 0, meetingsBooked: 0, followupsDone: 0
-      };
-      setStats(todayActivity);
-
-      const last7Days = Array.from({ length: 7 }, (_, i) => {
-        const d = format(addDays(new Date(), -6 + i), 'yyyy-MM-dd');
-        const act = allActivity.find(a => a.date === d) || { calls: 0, leadsContacted: 0, meetingsBooked: 0 };
-        return {
-          date: format(addDays(new Date(), -6 + i), 'MMM dd'),
-          calls: act.calls,
-          leads: act.leadsContacted,
-          meetings: act.meetingsBooked
+        const safeActivity = Array.isArray(allActivity) ? allActivity : [];
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const todayActivity = safeActivity.find(a => a.date === today) || {
+          leadsContacted: 0, calls: 0, messages: 0, meetingsBooked: 0, followupsDone: 0
         };
-      });
-      setActivityData(last7Days);
+        setStats(todayActivity);
+
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+          const d = format(addDays(new Date(), -6 + i), 'yyyy-MM-dd');
+          const act = safeActivity.find(a => a.date === d) || { calls: 0, leadsContacted: 0, meetingsBooked: 0 };
+          return {
+            date: format(addDays(new Date(), -6 + i), 'MMM dd'),
+            calls: act.calls || 0,
+            leads: act.leadsContacted || 0,
+            meetings: act.meetingsBooked || 0
+          };
+        });
+        setActivityData(last7Days);
+      } catch (err) {
+        console.error('Critical dashboard fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
   }, []);
@@ -92,7 +101,14 @@ const Dashboard = () => {
     return date <= threeDaysFromNow && l.status !== 'won' && l.status !== 'lost';
   }).sort((a, b) => a.followUpDate.localeCompare(b.followUpDate));
 
-  if (!targets) return <div className="p-10 text-center">Loading dashboard...</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[400px] text-white">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent animate-spin"></div>
+        <p className="text-sm font-medium animate-pulse">Loading dashboard data...</p>
+      </div>
+    </div>
+  );
 
   const totalLeads = leads.length;
   const hotLeads = leads.filter(l => l.priority === 'Hot').length;
