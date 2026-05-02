@@ -28,11 +28,15 @@ import { cn } from '../utils/cn';
 
 const Attendance = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [sessions, setSessions] = useState(DataManager.getSessions());
+  const [sessions, setSessions] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
 
   useEffect(() => {
-    setSessions(DataManager.getSessions());
+    const fetchSessions = async () => {
+      const data = await DataManager.getSessions();
+      setSessions(Array.isArray(data) ? data : []);
+    };
+    fetchSessions();
   }, []);
 
   const monthStart = startOfMonth(currentDate);

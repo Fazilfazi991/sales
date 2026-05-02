@@ -96,14 +96,14 @@ const Dashboard = () => {
 
   const totalLeads = leads.length;
   const hotLeads = leads.filter(l => l.priority === 'Hot').length;
-  const meetingsThisWeek = DataManager.getMeetings().filter(m => {
+  const meetingsThisWeek = meetings.filter(m => {
     const d = new Date(m.date);
     const start = new Date();
     start.setHours(0,0,0,0);
     const end = addDays(start, 7);
     return d >= start && d <= end;
   }).length;
-  const auditsThisMonth = DataManager.getAudits().filter(a => {
+  const auditsThisMonth = audits.filter(a => {
     return a.requestedDate && a.requestedDate.startsWith(format(new Date(), 'yyyy-MM'));
   }).length;
 
@@ -121,11 +121,11 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center p-4 border-r border-white/5">
               <div className="text-[10px] text-text-secondary uppercase font-bold">Total Active Days</div>
-              <div className="text-2xl font-black text-white">{[...new Set(DataManager.getSessions().map(s => s.date))].length}</div>
+              <div className="text-2xl font-black text-white">{[...new Set(activityData.map(s => s.date))].length}</div>
             </div>
             <div className="text-center p-4 border-r border-white/5">
               <div className="text-[10px] text-text-secondary uppercase font-bold">Total Meetings Booked</div>
-              <div className="text-2xl font-black text-white">{DataManager.getMeetings().length}</div>
+              <div className="text-2xl font-black text-white">{meetings.length}</div>
             </div>
             <div className="text-center p-4">
               <div className="text-[10px] text-text-secondary uppercase font-bold">Pipeline Potential Incentive</div>

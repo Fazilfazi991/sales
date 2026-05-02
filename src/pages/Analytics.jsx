@@ -9,9 +9,23 @@ import { TrendingUp, Users, Target, BarChart3, PieChart as PieIcon, Filter } fro
 import { format, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 
 const Analytics = () => {
-  const [leads, setLeads] = useState(DataManager.getLeads());
-  const [meetings, setMeetings] = useState(DataManager.getMeetings());
-  const [audits, setAudits] = useState(DataManager.getAudits());
+  const [leads, setLeads] = useState([]);
+  const [meetings, setMeetings] = useState([]);
+  const [audits, setAudits] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [leadsData, meetingsData, auditsData] = await Promise.all([
+        DataManager.getLeads(),
+        DataManager.getMeetings(),
+        DataManager.getAudits()
+      ]);
+      setLeads(Array.isArray(leadsData) ? leadsData : []);
+      setMeetings(Array.isArray(meetingsData) ? meetingsData : []);
+      setAudits(Array.isArray(auditsData) ? auditsData : []);
+    };
+    fetchData();
+  }, []);
 
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DataManager } from '../utils/dataManager';
 import { 
   TrendingUp, 
@@ -18,7 +18,7 @@ const Incentives = () => {
   useEffect(() => {
     const fetchLeads = async () => {
       const data = await DataManager.getLeads();
-      setLeads(data);
+      setLeads(Array.isArray(data) ? data : []);
     };
     fetchLeads();
   }, []);
