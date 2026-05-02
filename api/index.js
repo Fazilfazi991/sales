@@ -12,14 +12,85 @@ app.use(express.json());
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
+
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+});
+
+// Helper to ensure tables exist
+const ensureTables = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS leads (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      company TEXT,
+      industry TEXT,
+      country TEXT,
+      phone TEXT,
+      whatsapp TEXT,
+      email TEXT,
+      source TEXT,
+      campaign TEXT,
+      date_received DATE,
+      priority TEXT,
+      notes TEXT,
+      follow_up_date DATE,
+      status TEXT,
+      incentive TEXT,
+      closing_amount NUMERIC
+    );
+    CREATE TABLE IF NOT EXISTS meetings (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT REFERENCES leads(id) ON DELETE CASCADE,
+      date DATE,
+      type TEXT,
+      status TEXT,
+      notes TEXT
+    );
+    CREATE TABLE IF NOT EXISTS audits (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT REFERENCES leads(id) ON DELETE CASCADE,
+      requested_date DATE,
+      completed_date DATE,
+      status TEXT,
+      type TEXT
+    );
+    CREATE TABLE IF NOT EXISTS daily_activity (
+      date DATE PRIMARY KEY,
+      leads_contacted INTEGER DEFAULT 0,
+      calls INTEGER DEFAULT 0,
+      messages INTEGER DEFAULT 0,
+      meetings_booked INTEGER DEFAULT 0,
+      followups_done INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS targets (
+      id SERIAL PRIMARY KEY,
+      daily_calls INTEGER,
+      daily_leads INTEGER,
+      weekly_meetings INTEGER,
+      monthly_meetings INTEGER,
+      monthly_wins INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS rep_profile (
+      id SERIAL PRIMARY KEY,
+      name TEXT,
+      photo TEXT
+    );
+  `);
+};
 
 // --- Leads API ---
 app.get('/api/leads', async (req, res) => {
   try {
+    await ensureTables();
     const result = await pool.query('SELECT * FROM leads ORDER BY date_received DESC');
     res.json(result.rows);
   } catch (err) {
+    console.error('API Error (GET /api/leads):', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -27,6 +98,7 @@ app.get('/api/leads', async (req, res) => {
 app.post('/api/leads', async (req, res) => {
   const lead = req.body;
   try {
+    await ensureTables();
     const query = `
       INSERT INTO leads (id, name, company, industry, country, phone, whatsapp, email, source, campaign, date_received, priority, notes, follow_up_date, status, incentive, closing_amount)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
@@ -42,6 +114,7 @@ app.post('/api/leads', async (req, res) => {
     const result = await pool.query(query, values);
     res.json(result.rows[0]);
   } catch (err) {
+    console.error('API Error (POST /api/leads):', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -51,6 +124,7 @@ app.delete('/api/leads/:id', async (req, res) => {
     await pool.query('DELETE FROM leads WHERE id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
+    console.error('API Error (DELETE /api/leads):', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -58,6 +132,7 @@ app.delete('/api/leads/:id', async (req, res) => {
 // --- Meetings API ---
 app.get('/api/meetings', async (req, res) => {
   try {
+    await ensureTables();
     const result = await pool.query('SELECT * FROM meetings ORDER BY date DESC');
     res.json(result.rows);
   } catch (err) {
@@ -68,6 +143,7 @@ app.get('/api/meetings', async (req, res) => {
 app.post('/api/meetings', async (req, res) => {
   const meeting = req.body;
   try {
+    await ensureTables();
     const query = `
       INSERT INTO meetings (id, lead_id, date, type, status, notes)
       VALUES ($1, $2, $3, $4, $5, $6)
@@ -86,6 +162,7 @@ app.post('/api/meetings', async (req, res) => {
 // --- Audits API ---
 app.get('/api/audits', async (req, res) => {
   try {
+    await ensureTables();
     const result = await pool.query('SELECT * FROM audits ORDER BY requested_date DESC');
     res.json(result.rows);
   } catch (err) {
@@ -96,6 +173,7 @@ app.get('/api/audits', async (req, res) => {
 app.post('/api/audits', async (req, res) => {
   const audit = req.body;
   try {
+    await ensureTables();
     const query = `
       INSERT INTO audits (id, lead_id, requested_date, completed_date, status, type)
       VALUES ($1, $2, $3, $4, $5, $6)
@@ -114,6 +192,7 @@ app.post('/api/audits', async (req, res) => {
 // --- Activity API ---
 app.get('/api/activity', async (req, res) => {
   try {
+    await ensureTables();
     const result = await pool.query('SELECT * FROM daily_activity ORDER BY date DESC');
     res.json(result.rows);
   } catch (err) {
@@ -124,6 +203,7 @@ app.get('/api/activity', async (req, res) => {
 app.post('/api/activity', async (req, res) => {
   const { date, ...stats } = req.body;
   try {
+    await ensureTables();
     const query = `
       INSERT INTO daily_activity (date, leads_contacted, calls, messages, meetings_booked, followups_done)
       VALUES ($1, $2, $3, $4, $5, $6)
@@ -142,8 +222,9 @@ app.post('/api/activity', async (req, res) => {
 // --- Targets API ---
 app.get('/api/targets', async (req, res) => {
   try {
+    await ensureTables();
     const result = await pool.query('SELECT * FROM targets LIMIT 1');
-    res.json(result.rows[0]);
+    res.json(result.rows[0] || {});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -152,6 +233,7 @@ app.get('/api/targets', async (req, res) => {
 app.post('/api/targets', async (req, res) => {
   const targets = req.body;
   try {
+    await ensureTables();
     const check = await pool.query('SELECT id FROM targets LIMIT 1');
     let query;
     let values;
@@ -172,6 +254,7 @@ app.post('/api/targets', async (req, res) => {
 // --- Profile API ---
 app.get('/api/profile', async (req, res) => {
   try {
+    await ensureTables();
     const result = await pool.query('SELECT * FROM rep_profile LIMIT 1');
     res.json(result.rows[0] || { name: 'Sarah Jenkins', photo: null });
   } catch (err) {
@@ -182,6 +265,7 @@ app.get('/api/profile', async (req, res) => {
 app.post('/api/profile', async (req, res) => {
   const profile = req.body;
   try {
+    await ensureTables();
     const check = await pool.query('SELECT id FROM rep_profile LIMIT 1');
     let query;
     let values;

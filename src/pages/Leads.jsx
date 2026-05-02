@@ -51,7 +51,7 @@ const Leads = () => {
 
   const fetchLeads = async () => {
     const data = await DataManager.getLeads();
-    setLeads(data);
+    setLeads(Array.isArray(data) ? data : []);
   };
 
   useEffect(() => {

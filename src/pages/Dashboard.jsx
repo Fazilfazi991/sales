@@ -37,23 +37,28 @@ const Dashboard = () => {
   });
   const [targets, setTargets] = useState(null);
   const [leads, setLeads] = useState([]);
+  const [meetings, setMeetings] = useState([]);
+  const [audits, setAudits] = useState([]);
   const [activityData, setActivityData] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
-      const [leadsData, targetsData, meetingsData, auditsData, allActivity] = await Promise.all([
+      const [leadsData, meetingsData, auditsData, targetsData, allActivity] = await Promise.all([
         DataManager.getLeads(),
-        DataManager.getTargets(),
         DataManager.getMeetings(),
         DataManager.getAudits(),
+        DataManager.getTargets(),
         DataManager.getActivity()
       ]);
 
-      setLeads(leadsData);
-      setTargets(targetsData);
+      setLeads(Array.isArray(leadsData) ? leadsData : []);
+      setMeetings(Array.isArray(meetingsData) ? meetingsData : []);
+      setAudits(Array.isArray(auditsData) ? auditsData : []);
+      setTargets(targetsData || { monthlyMeetings: 0 });
 
       const today = format(new Date(), 'yyyy-MM-dd');
-      const todayActivity = allActivity.find(a => a.date === today) || {
+      const safeActivity = Array.isArray(allActivity) ? allActivity : [];
+      const todayActivity = safeActivity.find(a => a.date === today) || {
         leadsContacted: 0, calls: 0, messages: 0, meetingsBooked: 0, followupsDone: 0
       };
       setStats(todayActivity);
