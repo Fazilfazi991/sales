@@ -26,7 +26,7 @@ const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [notifications, setNotifications] = useState(0);
-  const profile = DataManager.getProfile();
+  const [profile, setProfile] = useState({ name: '', photo: null });
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -34,11 +34,25 @@ const Layout = () => {
   }, []);
 
   useEffect(() => {
-    // Check for overdue follow-ups
-    const leads = DataManager.getLeads();
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const overdueCount = leads.filter(l => l.followUpDate && l.followUpDate < today).length;
-    setNotifications(overdueCount);
+    const fetchData = async () => {
+      try {
+        const [profileData, leadsData] = await Promise.all([
+          DataManager.getProfile(),
+          DataManager.getLeads()
+        ]);
+        
+        if (profileData) setProfile(profileData);
+        
+        if (Array.isArray(leadsData)) {
+          const today = format(new Date(), 'yyyy-MM-dd');
+          const overdueCount = leadsData.filter(l => l.followUpDate && l.followUpDate < today).length;
+          setNotifications(overdueCount);
+        }
+      } catch (err) {
+        console.warn('Layout data fetch failed', err);
+      }
+    };
+    fetchData();
   }, []);
 
   const handleLogout = () => {
