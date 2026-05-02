@@ -10,14 +10,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+if (!process.env.DATABASE_URL) {
+  console.error('CRITICAL: DATABASE_URL is not defined in environment variables!');
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false,
   },
-  max: 20,
+  max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000, // Increased to 10s for Neon cold starts
 });
 
 // Test connection on startup
