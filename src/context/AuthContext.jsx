@@ -18,9 +18,12 @@ export const AuthProvider = ({ children }) => {
     if (lowerUsername === 'admin' && password === 'admin123') {
       role = 'manager';
       name = 'Manager';
+    } else if (lowerUsername === 'malu' && password === 'malu@1234') {
+      role = 'rep';
+      name = 'Malavika';
     } else if (lowerUsername === 'rep' && password === 'rep123') {
       role = 'rep';
-      name = DataManager.getProfile().name;
+      name = 'Representative';
     }
 
     if (role) {
