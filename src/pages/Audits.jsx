@@ -20,6 +20,7 @@ import { cn } from '../utils/cn';
 const Audits = () => {
   const [audits, setAudits] = useState([]);
   const [leads, setLeads] = useState([]);
+  const [meetings, setMeetings] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(getInitialFormData());
 
@@ -37,12 +38,14 @@ const Audits = () => {
   }
 
   const fetchData = async () => {
-    const [auditsData, leadsData] = await Promise.all([
+    const [auditsData, leadsData, meetingsData] = await Promise.all([
       DataManager.getAudits(),
-      DataManager.getLeads()
+      DataManager.getLeads(),
+      DataManager.getMeetings()
     ]);
-    setAudits(auditsData);
-    setLeads(leadsData);
+    setAudits(Array.isArray(auditsData) ? auditsData : []);
+    setLeads(Array.isArray(leadsData) ? leadsData : []);
+    setMeetings(Array.isArray(meetingsData) ? meetingsData : []);
   };
 
   useEffect(() => {
@@ -77,7 +80,7 @@ const Audits = () => {
   
   // Mock conversion stat
   const convertedToMeetings = audits.filter(a => {
-    const meeting = DataManager.getMeetings().find(m => m.leadId === a.leadId);
+    const meeting = meetings.find(m => m.leadId === a.leadId);
     return meeting !== undefined;
   }).length;
 

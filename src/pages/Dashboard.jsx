@@ -35,7 +35,8 @@ const Dashboard = () => {
     meetingsBooked: 0,
     followupsDone: 0
   });
-  const [targets, setTargets] = useState(null);
+  const [targets, setTargets] = useState({ dailyCalls: 0, dailyLeads: 0, weeklyMeetings: 0, monthlyMeetings: 0, monthlyWins: 0 });
+  const [profile, setProfile] = useState({ name: '', photo: null });
   const [leads, setLeads] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [audits, setAudits] = useState([]);
@@ -47,18 +48,20 @@ const Dashboard = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [leadsData, meetingsData, auditsData, targetsData, allActivity] = await Promise.all([
+        const [leadsData, meetingsData, auditsData, targetsData, allActivity, profileData] = await Promise.all([
           DataManager.getLeads().catch(() => []),
           DataManager.getMeetings().catch(() => []),
           DataManager.getAudits().catch(() => []),
           DataManager.getTargets().catch(() => ({})),
-          DataManager.getActivity().catch(() => [])
+          DataManager.getActivity().catch(() => []),
+          DataManager.getProfile().catch(() => ({ name: '', photo: null }))
         ]);
 
         setLeads(Array.isArray(leadsData) ? leadsData : []);
         setMeetings(Array.isArray(meetingsData) ? meetingsData : []);
         setAudits(Array.isArray(auditsData) ? auditsData : []);
         setTargets(targetsData && typeof targetsData === 'object' ? targetsData : { monthlyMeetings: 0 });
+        setProfile(profileData);
 
         const safeActivity = Array.isArray(allActivity) ? allActivity : [];
         const today = format(new Date(), 'yyyy-MM-dd');
@@ -125,9 +128,6 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-8 fade-in">
-      {/* Section A - DAILY SCORECARD */}
-      {/* ... (existing scorecard) ... */}
-
       {user.role === 'manager' && (
         <div className="card border-primary/20 bg-primary/5">
           <div className="flex items-center gap-2 mb-4">
@@ -190,7 +190,6 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Section B - MONTHLY KPI PROGRESS */}
         <div className="lg:col-span-2 space-y-6">
           <div className="card">
             <div className="flex items-center justify-between mb-6">
@@ -205,23 +204,23 @@ const Dashboard = () => {
               <ProgressBar 
                 label="Leads Contacted" 
                 current={leads.filter(l => l.dateReceived && l.dateReceived.startsWith(format(new Date(), 'yyyy-MM'))).length} 
-                target={targets.monthlyMeetings * 5} // Mock logic for demo
+                target={targets.monthlyMeetings * 5}
               />
               <ProgressBar 
-                label="Meetings Booked" 
-                current={DataManager.getMeetings().filter(m => m.date && m.date.startsWith(format(new Date(), 'yyyy-MM'))).length} 
+                label="Meetings This Month" 
+                current={meetings.filter(m => m.date && m.date.startsWith(format(new Date(), 'yyyy-MM'))).length} 
                 target={targets.monthlyMeetings} 
+                unit="meetings"
               />
               <ProgressBar 
-                label="Conversion Rate" 
-                current={leads.length > 0 ? Math.round((DataManager.getMeetings().length / leads.length) * 100) : 0} 
+                label="Lead-to-Meeting %" 
+                current={leads.length > 0 ? Math.round((meetings.length / leads.length) * 100) : 0} 
                 target={20}
                 isPercent
               />
             </div>
           </div>
 
-          {/* Section E - ACTIVITY CHART */}
           <div className="card">
             <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
               <TrendingUp className="text-primary" size={20} />

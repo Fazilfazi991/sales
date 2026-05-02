@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DataManager } from '../utils/dataManager';
 import { 
   Save, 
@@ -15,11 +15,23 @@ import { useAuth } from '../context/AuthContext';
 
 const Settings = () => {
   const { logout } = useAuth();
-  const [targets, setTargets] = useState(DataManager.getTargets());
-  const [profile, setProfile] = useState(DataManager.getProfile());
+  const [targets, setTargets] = useState({ dailyCalls: 0, dailyLeads: 0, weeklyMeetings: 0, monthlyMeetings: 0, monthlyWins: 0 });
+  const [profile, setProfile] = useState({ name: '', photo: null });
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [resetConfirm, setResetConfirm] = useState('');
   const [showToast, setShowToast] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [t, p] = await Promise.all([
+        DataManager.getTargets(),
+        DataManager.getProfile()
+      ]);
+      if (t) setTargets(t);
+      if (p) setProfile(p);
+    };
+    fetchData();
+  }, []);
 
   const handleSaveTargets = (e) => {
     e.preventDefault();
