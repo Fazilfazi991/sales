@@ -11,102 +11,100 @@ app.use(cors());
 app.use(express.json());
 
 if (!process.env.DATABASE_URL) {
-  console.error('CRITICAL: DATABASE_URL is not defined in environment variables!');
+  console.error('CRITICAL: DATABASE_URL is not defined!');
 }
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: { rejectUnauthorized: false },
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000, // Increased to 10s for Neon cold starts
+  connectionTimeoutMillis: 10000,
 });
 
-// Test connection on startup
-pool.connect((err, client, release) => {
-  if (err) {
-    return console.error('Error acquiring client', err.stack);
-  }
-  console.log('Successfully connected to Neon PostgreSQL');
-  release();
-});
+// Cache the table initialization
+let isInitialized = false;
 
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-});
-
-// Helper to ensure tables exist
 const ensureTables = async () => {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS leads (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      company TEXT,
-      industry TEXT,
-      country TEXT,
-      phone TEXT,
-      whatsapp TEXT,
-      email TEXT,
-      source TEXT,
-      campaign TEXT,
-      date_received DATE,
-      priority TEXT,
-      notes TEXT,
-      follow_up_date DATE,
-      status TEXT,
-      incentive TEXT,
-      closing_amount NUMERIC
-    );
-    CREATE TABLE IF NOT EXISTS meetings (
-      id TEXT PRIMARY KEY,
-      lead_id TEXT REFERENCES leads(id) ON DELETE CASCADE,
-      date DATE,
-      type TEXT,
-      status TEXT,
-      notes TEXT
-    );
-    CREATE TABLE IF NOT EXISTS audits (
-      id TEXT PRIMARY KEY,
-      lead_id TEXT REFERENCES leads(id) ON DELETE CASCADE,
-      requested_date DATE,
-      completed_date DATE,
-      status TEXT,
-      type TEXT
-    );
-    CREATE TABLE IF NOT EXISTS daily_activity (
-      date DATE PRIMARY KEY,
-      leads_contacted INTEGER DEFAULT 0,
-      calls INTEGER DEFAULT 0,
-      messages INTEGER DEFAULT 0,
-      meetings_booked INTEGER DEFAULT 0,
-      followups_done INTEGER DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS targets (
-      id SERIAL PRIMARY KEY,
-      daily_calls INTEGER,
-      daily_leads INTEGER,
-      weekly_meetings INTEGER,
-      monthly_meetings INTEGER,
-      monthly_wins INTEGER
-    );
-    CREATE TABLE IF NOT EXISTS rep_profile (
-      id SERIAL PRIMARY KEY,
-      name TEXT,
-      photo TEXT
-    );
-  `);
+  if (isInitialized) return;
+  
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        company TEXT,
+        industry TEXT,
+        country TEXT,
+        phone TEXT,
+        whatsapp TEXT,
+        email TEXT,
+        source TEXT,
+        campaign TEXT,
+        date_received DATE,
+        priority TEXT,
+        notes TEXT,
+        follow_up_date DATE,
+        status TEXT,
+        incentive TEXT,
+        closing_amount NUMERIC
+      );
+      CREATE TABLE IF NOT EXISTS meetings (
+        id TEXT PRIMARY KEY,
+        lead_id TEXT REFERENCES leads(id) ON DELETE CASCADE,
+        date DATE,
+        type TEXT,
+        status TEXT,
+        notes TEXT
+      );
+      CREATE TABLE IF NOT EXISTS audits (
+        id TEXT PRIMARY KEY,
+        lead_id TEXT REFERENCES leads(id) ON DELETE CASCADE,
+        requested_date DATE,
+        completed_date DATE,
+        status TEXT,
+        type TEXT
+      );
+      CREATE TABLE IF NOT EXISTS daily_activity (
+        date DATE PRIMARY KEY,
+        leads_contacted INTEGER DEFAULT 0,
+        calls INTEGER DEFAULT 0,
+        messages INTEGER DEFAULT 0,
+        meetings_booked INTEGER DEFAULT 0,
+        followups_done INTEGER DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS targets (
+        id SERIAL PRIMARY KEY,
+        daily_calls INTEGER,
+        daily_leads INTEGER,
+        weekly_meetings INTEGER,
+        monthly_meetings INTEGER,
+        monthly_wins INTEGER
+      );
+      CREATE TABLE IF NOT EXISTS rep_profile (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        photo TEXT
+      );
+    `);
+    isInitialized = true;
+    console.log('Database tables verified/created');
+  } catch (err) {
+    console.error('Initialization error:', err);
+  } finally {
+    client.release();
+  }
 };
 
-// --- Leads API ---
+// --- API Endpoints ---
+
 app.get('/api/leads', async (req, res) => {
   try {
     await ensureTables();
     const result = await pool.query('SELECT * FROM leads ORDER BY date_received DESC');
     res.json(result.rows);
   } catch (err) {
-    console.error('API Error (GET /api/leads):', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -130,7 +128,6 @@ app.post('/api/leads', async (req, res) => {
     const result = await pool.query(query, values);
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('API Error (POST /api/leads):', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -140,12 +137,10 @@ app.delete('/api/leads/:id', async (req, res) => {
     await pool.query('DELETE FROM leads WHERE id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    console.error('API Error (DELETE /api/leads):', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// --- Meetings API ---
 app.get('/api/meetings', async (req, res) => {
   try {
     await ensureTables();
@@ -175,7 +170,6 @@ app.post('/api/meetings', async (req, res) => {
   }
 });
 
-// --- Audits API ---
 app.get('/api/audits', async (req, res) => {
   try {
     await ensureTables();
@@ -205,7 +199,6 @@ app.post('/api/audits', async (req, res) => {
   }
 });
 
-// --- Activity API ---
 app.get('/api/activity', async (req, res) => {
   try {
     await ensureTables();
@@ -235,7 +228,6 @@ app.post('/api/activity', async (req, res) => {
   }
 });
 
-// --- Targets API ---
 app.get('/api/targets', async (req, res) => {
   try {
     await ensureTables();
@@ -267,7 +259,6 @@ app.post('/api/targets', async (req, res) => {
   }
 });
 
-// --- Profile API ---
 app.get('/api/profile', async (req, res) => {
   try {
     await ensureTables();
@@ -298,10 +289,5 @@ app.post('/api/profile', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-const PORT = process.env.PORT || 5000;
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-}
 
 export default app;
