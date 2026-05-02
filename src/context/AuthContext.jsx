@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : null;
   });
 
-  const login = (username, password) => {
+  const login = async (username, password) => {
     let role = null;
     let name = '';
     const lowerUsername = username.toLowerCase();
@@ -32,15 +32,19 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('salespro_user', JSON.stringify(userData));
       
       // Record session
-      DataManager.addSession({
-        date: format(new Date(), 'yyyy-MM-dd'),
-        loginTime: format(new Date(), 'HH:mm:ss'),
-        logoutTime: null,
-        hoursWorked: 0,
-        stats: DataManager.getActivity().find(a => a.date === format(new Date(), 'yyyy-MM-dd')) || {
-          calls: 0, messages: 0, leadsContacted: 0, meetingsBooked: 0, followupsDone: 0
-        }
-      });
+      try {
+        await DataManager.addSession({
+          date: format(new Date(), 'yyyy-MM-dd'),
+          loginTime: format(new Date(), 'HH:mm:ss'),
+          logoutTime: null,
+          hoursWorked: 0,
+          stats: {
+            calls: 0, messages: 0, leadsContacted: 0, meetingsBooked: 0, followupsDone: 0
+          }
+        });
+      } catch (err) {
+        console.warn('Could not record session to DB, continuing...', err);
+      }
       
       return true;
     }

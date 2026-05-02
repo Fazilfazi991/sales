@@ -11,19 +11,24 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      if (login(username, password)) {
+    try {
+      const success = await login(username, password);
+      if (success) {
         navigate('/');
       } else {
         setError('Invalid username or password');
         setLoading(false);
       }
-    }, 800);
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Connection error. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
